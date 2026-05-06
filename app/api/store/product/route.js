@@ -1,4 +1,5 @@
 import imagekit from "@/configs/imagekit";
+import { prisma } from "@/lib/prisma";
 import authSeller from "@/middelwares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -43,34 +44,41 @@ export async function POST(request) {
         const response = await imagekit.upload({
           file: buffer,
           fileName: image.name,
-          folder: "products"
+          folder: "products",
         });
         const url = imagekit.url({
           path: response.filePath,
           transformation: [
-            {quality: "auto"},
-            {format: "webp"},
-            {width: "1024"},
-          ]
-        })
+            { quality: "auto" },
+            { format: "webp" },
+            { width: "1024" },
+          ],
+        });
         return url;
-      }));
-      await prisma.product.create({
-        data: {
-          name,
-          description,
-          mrp,
-          price,
-          category,
-          images: imagesUrl,
-          storeId,
-        }
-      })
+      }),
+    );
+    await prisma.product.create({
+      data: {
+        name,
+        description,
+        mrp,
+        price,
+        category,
+        images: imagesUrl,
+        storeId,
+      },
+    });
 
-      return NextResponse.json({ message: "Product added successfully" }, { status: 201 });
+    return NextResponse.json(
+      { message: "Product added successfully" },
+      { status: 201 },
+    );
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+    return NextResponse.json(
+      { error: error.code || error.message },
+      { status: 400 },
+    );
   }
 }
 
@@ -86,9 +94,11 @@ export async function GET(request) {
       where: { storeId },
     });
     return NextResponse.json({ products }, { status: 200 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { error: error.code || error.message },
+      { status: 400 },
+    );
   }
-    catch (error) {
-      console.error(error);
-      return NextResponse.json({ error: error.code || error.message }, { status: 400 });
-    }
 }
