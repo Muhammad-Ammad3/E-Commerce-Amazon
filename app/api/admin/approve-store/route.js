@@ -13,7 +13,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const { statusId, status } = await request.json;
+    const { storeId, status } = await request.json();
     if (status === "approved") {
       await prisma.store.update({
         where: { id: storeId },
@@ -44,14 +44,17 @@ export async function GET(request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const store = await prisma.store.findMany({
+    const stores = await prisma.store.findMany({
       where: { status: { in: ["pending", "rejected"] } },
       include: { user: true },
     });
 
-    return NextResponse.json({ store });
+    return NextResponse.json({ stores });
   } catch (error) {
-        console.error(error)
-        return NextResponse.json({error: error.code || error.message}, {status: 400})
-    }
+    console.error(error);
+    return NextResponse.json(
+      { error: error.code || error.message },
+      { status: 400 },
+    );
+  }
 }
