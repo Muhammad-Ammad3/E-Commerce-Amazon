@@ -13,12 +13,12 @@ export async function GET(request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const store = await prisma.store.findMany({
+    const stores = await prisma.store.findMany({
       where: { status: "approved"},
       include: { user: true },
     });
 
-    return NextResponse.json({ store });
+    return NextResponse.json({ stores });
   } catch (error) {
         console.error(error)
         return NextResponse.json({error: error.code || error.message}, {status: 400})

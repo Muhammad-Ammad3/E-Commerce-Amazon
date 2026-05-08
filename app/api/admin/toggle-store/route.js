@@ -18,19 +18,19 @@ export async function POST(request) {
     }
 
     // find the store
-    const store = await prisma.store.findUnique({
+    const stores = await prisma.store.findUnique({
       where: { id: storeId },
     });
-    if (!store) {
+    if (!stores) {
       return NextResponse.json({ error: "store not found" }, { status: 400 });
     }
 
     await prisma.store.update({
       where: { id: storeId },
-      data: { isActive: !store.isActive },
+      data: { isActive: !stores.isActive },
     });
 
-    return NextResponse.json({ error: "store updated successfully" });
+    return NextResponse.json({ message: "store updated successfully" });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
