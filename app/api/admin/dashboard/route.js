@@ -34,14 +34,14 @@ export async function GET(request) {
     // total products on app
     const products = await prisma.product.count();
 
-    const dashBoardData = {
+    const dashboardData = {
       orders,
       stores,
       products,
       revenue,
       allOrders,
     };
-    return NextResponse.json({ dashBoardData });
+    return NextResponse.json({ dashboardData });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
