@@ -99,7 +99,6 @@ export async function GET(request) {
   }
 }
 
-// POST: Naya coupon add karne ke liye
 export async function POST(request) {
   try {
     const { userId } = getAuth(request);
@@ -112,10 +111,12 @@ export async function POST(request) {
     const body = await request.json();
 
     if (!body.code) {
-      return NextResponse.json({ error: "Coupon code is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Coupon code is required" },
+        { status: 400 },
+      );
     }
 
-    // 1. Pehle coupon create karein aur variable mein save karein
     const coupon = await prisma.coupon.create({
       data: {
         ...body,
@@ -125,7 +126,6 @@ export async function POST(request) {
       },
     });
 
-    // 2. Inngest event bhejain (await zaroori hai taake confirm ho jaye)
     await inngest.send({
       name: "app/coupon.expire",
       data: {
