@@ -236,7 +236,7 @@
 //                           loading: "Deleting coupon...",
 //                         })
 //                       }
-//                       className="w-5 h-5 text-red-500 hover:text-red-800 cursor-pointer"
+//                       className="w-5  text-red-500 hover:text-red-800 cursor-pointer"
 //                     />
 //                   </td>
 //                 </tr>
