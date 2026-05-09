@@ -127,7 +127,7 @@ export async function POST(request) {
     });
 
     await inngest.send({
-      name: "app/coupon.expire",
+      name: "app/coupon.expired",
       data: {
         code: coupon.code,
         expires_at: coupon.expiresAt,
