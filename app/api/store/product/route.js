@@ -4,7 +4,7 @@ import authSeller from "@/middelwares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// add a new product to the store
+// Add a new product to the store
 export async function POST(request) {
   try {
     const { userId } = getAuth(request);
@@ -14,39 +14,44 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // get the data form the form
     const formData = await request.formData();
-    const name = formData.get("name");
-    const description = formData.get("description");
+    const name = formData.get("name")?.toString();
+    const description = formData.get("description")?.toString();
     const mrp = Number(formData.get("mrp"));
     const price = Number(formData.get("price"));
-    const category = formData.get("category");
+    const category = formData.get("category")?.toString();
     const images = formData.getAll("images");
 
+    // Validation Fix: NaN check and empty string check
     if (
-      !name ||
-      !description ||
-      !mrp ||
-      !price ||
-      !category ||
-      images.length < 1
+      !name || 
+      !description || 
+      isNaN(mrp) || 
+      isNaN(price) || 
+      !category || 
+      images.length === 0
     ) {
       return NextResponse.json(
-        { error: "missing product details" },
-        { status: 400 },
+        { error: "Missing or invalid product details" },
+        { status: 400 }
       );
     }
 
-    // upload images from ImageKit
+    // Upload images to ImageKit
     const imagesUrl = await Promise.all(
       images.map(async (image) => {
-        const buffer = await image.arrayBuffer();
+        // Fix: ImageKit needs a Buffer, not an ArrayBuffer
+        const arrayBuffer = await image.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
         const response = await imagekit.upload({
-          file: buffer,
-          fileName: image.name,
+          file: buffer, // Passing the buffer
+          fileName: image.name || "product_image",
           folder: "products",
         });
-        const url = imagekit.url({
+
+        // Optimization: ImageKit URL generation
+        return imagekit.url({
           path: response.filePath,
           transformation: [
             { quality: "auto" },
@@ -54,10 +59,11 @@ export async function POST(request) {
             { width: "1024" },
           ],
         });
-        return url;
-      }),
+      })
     );
-    await prisma.product.create({
+
+    // Save to Database
+    const newProduct = await prisma.product.create({
       data: {
         name,
         description,
@@ -70,35 +76,39 @@ export async function POST(request) {
     });
 
     return NextResponse.json(
-      { message: "Product added successfully" },
-      { status: 201 },
+      { message: "Product added successfully", product: newProduct },
+      { status: 201 }
     );
   } catch (error) {
-    console.error(error);
+    console.error("POST ERROR:", error);
     return NextResponse.json(
-      { error: error.code || error.message },
-      { status: 400 },
+      { error: error.message || "Something went wrong" },
+      { status: 500 } // General server error 500 better rehta hai
     );
   }
 }
 
-// get all the products of the seller
+// Get all the products of the seller
 export async function GET(request) {
   try {
     const { userId } = getAuth(request);
     const storeId = await authSeller(userId);
+
     if (!storeId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
     const products = await prisma.product.findMany({
       where: { storeId },
+      orderBy: { createdAt: 'desc' } // Optional: Naya product pehle dikhega
     });
+
     return NextResponse.json({ products }, { status: 200 });
   } catch (error) {
-    console.error(error);
+    console.error("GET ERROR:", error);
     return NextResponse.json(
-      { error: error.code || error.message },
-      { status: 400 },
+      { error: error.message || "Failed to fetch products" },
+      { status: 500 }
     );
   }
 }
