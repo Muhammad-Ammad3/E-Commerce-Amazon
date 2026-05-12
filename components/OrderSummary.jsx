@@ -171,7 +171,12 @@ const OrderSummary = ({ totalPrice, items }) => {
                 )
               : (totalPrice + 5).toLocaleString()
           }`}
-          ></Show>
+          >
+            {currency}
+            {coupon
+              ? (totalPrice - (coupon.discount / 100) * totalPrice).toFixed(2)
+              : totalPrice.toLocaleString()}
+          </Show>
         </p>
       </div>
       <button
