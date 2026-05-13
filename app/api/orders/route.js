@@ -159,8 +159,7 @@
 //     return NextResponse.json({ error: error.message }, { status: 400 });
 //   }
 // }
-
-import { prisma } from "@/lib/prisma";
+ import { prisma } from "@/lib/prisma";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
@@ -171,38 +170,31 @@ export async function POST(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { addressId, items, couponCode, paymentMethod } =
-      await request.json();
+    const { addressId, items, couponCode, paymentMethod } = await request.json();
 
-    if (
-      !addressId ||
-      !paymentMethod ||
-      !items ||
-      !Array.isArray(items) ||
-      items.length === 0
-    ) {
-      return NextResponse.json(
-        { error: "Missing order details." },
-        { status: 400 },
-      );
+    // 1. Validation
+    if (!addressId || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Missing order details." }, { status: 400 });
     }
 
+    // 2. Coupon Validation
     let coupon = null;
     if (couponCode) {
       coupon = await prisma.coupon.findFirst({
         where: { code: couponCode, expiresAt: { gt: new Date() } },
       });
       if (!coupon) {
-        return NextResponse.json({ error: "Invalid Coupon" }, { status: 404 });
+        return NextResponse.json({ error: "Invalid or expired coupon" }, { status: 404 });
       }
     }
 
-    // Performance Fix: Saare products ek saath fetch karein
+    // 3. Products Fetching
     const productIds = items.map((i) => i.id);
     const dbProducts = await prisma.product.findMany({
       where: { id: { in: productIds } },
     });
 
+    // 4. Group items by Store
     const ordersByStore = new Map();
     for (const item of items) {
       const product = dbProducts.find((p) => p.id === item.id);
@@ -218,51 +210,62 @@ export async function POST(request) {
     const hasPlusPlan = has({ plan: "plus" });
     let isShippingFeeAdded = false;
 
-    // Create orders
-    for (const [storeId, sellerItems] of ordersByStore.entries()) {
-      let currentOrderTotal = sellerItems.reduce(
-        (acc, item) => acc + item.price * item.quantity,
-        0,
-      );
+    // 5. Transaction to ensure data integrity
+    const result = await prisma.$transaction(async (tx) => {
+      const createdOrders = [];
 
-      if (coupon) {
-        currentOrderTotal -= (currentOrderTotal * coupon.discount) / 100;
-      }
+      for (const [storeId, sellerItems] of ordersByStore.entries()) {
+        let currentOrderTotal = sellerItems.reduce(
+          (acc, item) => acc + item.price * item.quantity,
+          0
+        );
 
-      // Add shipping fee once if not a Plus member
-      if (!hasPlusPlan && !isShippingFeeAdded) {
-        currentOrderTotal += 5;
-        isShippingFeeAdded = true;
-      }
+        if (coupon) {
+          currentOrderTotal -= (currentOrderTotal * coupon.discount) / 100;
+        }
 
-      await prisma.order.create({
-        data: {
-          userId,
-          storeId,
-          addressId,
-          total: parseFloat(currentOrderTotal.toFixed(2)),
-          paymentMethod,
-          isPaid: paymentMethod === "COD" ? false : false, // Stripe ke liye true baad mein hoga
-          orderItems: {
-            create: sellerItems.map((item) => ({
-              productId: item.id,
-              quantity: item.quantity,
-              price: item.price,
-            })),
+        if (!hasPlusPlan && !isShippingFeeAdded) {
+          currentOrderTotal += 5;
+          isShippingFeeAdded = true;
+        }
+
+        const newOrder = await tx.order.create({
+          data: {
+            userId,
+            storeId,
+            addressId,
+            total: parseFloat(currentOrderTotal.toFixed(2)),
+            paymentMethod,
+            // FIX: Use 'paymentMethod' variable, not 'PaymentMethod' enum
+            isPaid: false, // Stripe ke liye webhook handle karega baad mein
+            orderItems: {
+              create: sellerItems.map((item) => ({
+                productId: item.id,
+                quantity: item.quantity,
+                price: item.price,
+              })),
+            },
           },
-        },
-      });
-    }
+        });
+        createdOrders.push(newOrder);
+      }
 
-    // Clear cart (Assuming cart is a Json field or related table)
-    await prisma.user.update({
-      where: { id: userId },
-      data: { cart: [] },
+      // 6. Clear Cart inside transaction
+      await tx.user.update({
+        where: { id: userId },
+        data: { cart: [] },
+      });
+
+      return createdOrders;
     });
 
-    return NextResponse.json({ message: "Orders Placed Successfully" });
+    return NextResponse.json({ 
+      message: "Orders Placed Successfully", 
+      orders: result 
+    });
+
   } catch (error) {
-    console.error(error);
+    console.error("Order Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
