@@ -354,7 +354,7 @@ export async function POST(request) {
 
         expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
 
-        success_url: `${origin}/loading?nexturl=orders`,
+        success_url: `${origin}/orders`,
 
         cancel_url: `${origin}/cart`,
 
