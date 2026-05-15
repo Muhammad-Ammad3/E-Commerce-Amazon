@@ -40,69 +40,85 @@
 // }
 
 
-
 import { getAuth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+// Verify coupon
 export async function POST(request) {
   try {
     const { userId, has } = getAuth(request);
 
-    // 1. Check if user is authenticated
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const { code } = await request.json();
 
     if (!code) {
-      return NextResponse.json({ error: "Code is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Coupon code is required" },
+        { status: 400 }
+      );
     }
 
-    // 2. findFirst use karein agar multiple conditions hain
+    // Find valid coupon
     const coupon = await prisma.coupon.findFirst({
-      where: { 
-        code: code.toUpperCase(), 
-        expiresAt: { gt: new Date() } 
+      where: {
+        code: code.toUpperCase(),
+
+        expiresAt: {
+          gt: new Date(),
+        },
       },
     });
 
+    // Coupon not found
     if (!coupon) {
-      return NextResponse.json({ error: "Invalid or expired coupon" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Coupon not found or expired" },
+        { status: 404 }
+      );
     }
 
-    // 3. New User Check (Optimized with count)
+    // New user coupon check
     if (coupon.forNewUser) {
-      const orderCount = await prisma.order.count({ where: { userId } });
-      if (orderCount > 0) {
+      const userOrders = await prisma.order.findMany({
+        where: { userId },
+      });
+
+      if (userOrders.length > 0) {
         return NextResponse.json(
-          { error: "This coupon is only for first-time orders" },
-          { status: 400 },
+          { error: "Coupon valid for new users only" },
+          { status: 400 }
         );
       }
     }
 
-    // 4. Member Check
+    // Member coupon check
     if (coupon.forMember) {
       const hasPlusPlan = has({ plan: "plus" });
+
       if (!hasPlusPlan) {
         return NextResponse.json(
-          { error: "This coupon requires a Plus membership" },
-          { status: 400 },
+          { error: "Coupon valid for members only" },
+          { status: 400 }
         );
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      coupon 
-    });
+    return NextResponse.json({ coupon });
 
   } catch (error) {
-    console.error("Coupon Verification Error:", error);
+    console.error(error);
+
     return NextResponse.json(
-      { error: "Internal Server Error" }, 
+      {
+        error: error.message || error.code,
+      },
       { status: 500 }
     );
   }

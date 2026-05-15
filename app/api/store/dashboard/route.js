@@ -40,29 +40,38 @@
 //   }
 // }
 
-
 import { prisma } from "@/lib/prisma";
 import authSeller from "@/middelwares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// Get dashboard data for seller
 export async function GET(request) {
   try {
     const { userId } = getAuth(request);
+
+    // 1. Check if user is logged in
+    if (!userId) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
+    // 2. AuthSeller check
+    // Ensure authSeller returns storeId or null, and doesn't throw unhandled error
     const storeId = await authSeller(userId);
 
     if (!storeId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Seller store not found" }, { status: 401 });
     }
 
-    // Saare data ko parallel mein fetch karte hain performance ke liye
+    // 3. Parallel fetching with error handling for database
     const [orders, products] = await Promise.all([
-      prisma.order.findMany({ where: { storeId } }),
-      prisma.product.findMany({ where: { storeId } }),
+      prisma.order.findMany({ 
+        where: { storeId: storeId } 
+      }),
+      prisma.product.findMany({ 
+        where: { storeId: storeId } 
+      }),
     ]);
 
-    // Product IDs ki array nikalte hain ratings fetch karne ke liye
     const productIds = products.map((p) => p.id);
 
     let ratings = [];
@@ -75,24 +84,31 @@ export async function GET(request) {
           user: true, 
           product: true 
         },
-        orderBy: { createdAt: 'desc' } // Taaki latest reviews pehle dikhen
+        orderBy: { createdAt: 'desc' }
       });
     }
+
+    // 4. Safe calculation (Fixing potential 500 error)
+    const totalEarnings = orders.reduce((acc, order) => {
+      // Jo field aapke DB mein hai (amount ya total), use yahan check karein
+      const value = Number(order.amount || order.total || 0);
+      return acc + value;
+    }, 0);
 
     const dashBoardData = {
       ratings,
       totalOrders: orders.length,
-      totalEarnings: Math.round(
-        orders.reduce((acc, order) => acc + (order.amount || order.total || 0), 0)
-      ),
+      totalEarnings: Math.round(totalEarnings),
       totalProducts: products.length,
     };
 
     return NextResponse.json({ dashBoardData });
+
   } catch (error) {
-    console.error("Dashboard Error:", error);
+    // Isse terminal mein check karein ke asli error kya hai
+    console.error("Critical Dashboard Error:", error); 
     return NextResponse.json(
-      { error: error.message || "Failed to fetch dashboard data" },
+      { error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }

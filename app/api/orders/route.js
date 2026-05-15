@@ -159,140 +159,244 @@
 //     return NextResponse.json({ error: error.message }, { status: 400 });
 //   }
 // }
- import { prisma } from "@/lib/prisma";
+ 
+
+import { prisma } from "@/lib/prisma";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { PaymentMethod } from "@prisma/client";
 
 export async function POST(request) {
   try {
     const { userId, has } = getAuth(request);
+
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    const { addressId, items, couponCode, paymentMethod } = await request.json();
+    const { addressId, items, couponCode, paymentMethod: payMethod } =
+      await request.json();
 
-    // 1. Validation
-    if (!addressId || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "Missing order details." }, { status: 400 });
+    // Validate fields
+    if (
+      !addressId ||
+      !payMethod ||
+      !items ||
+      !Array.isArray(items) ||
+      items.length === 0
+    ) {
+      return NextResponse.json(
+        { error: "Missing order details" },
+        { status: 400 }
+      );
     }
 
-    // 2. Coupon Validation
     let coupon = null;
+
+    // Find coupon
     if (couponCode) {
       coupon = await prisma.coupon.findFirst({
-        where: { code: couponCode, expiresAt: { gt: new Date() } },
+        where: {
+          code: couponCode,
+        },
       });
+
       if (!coupon) {
-        return NextResponse.json({ error: "Invalid or expired coupon" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Coupon not found" },
+          { status: 404 }
+        );
       }
     }
 
-    // 3. Products Fetching
-    const productIds = items.map((i) => i.id);
-    const dbProducts = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-    });
+    // First order coupon check
+    if (couponCode && coupon.forNewUser) {
+      const orderCount = await prisma.order.count({
+        where: { userId },
+      });
 
-    // 4. Group items by Store
+      if (orderCount > 0) {
+        return NextResponse.json(
+          { error: "This coupon is only for first-time users" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Membership coupon check
+    const hasPlusPlan = has({ plan: "plus" });
+
+    if (couponCode && coupon.forMember) {
+      if (!hasPlusPlan) {
+        return NextResponse.json(
+          { error: "This coupon requires Plus membership" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Group items by store
     const ordersByStore = new Map();
+
     for (const item of items) {
-      const product = dbProducts.find((p) => p.id === item.id);
-      if (!product) continue;
+      const product = await prisma.product.findUnique({
+        where: { id: item.id },
+      });
+
+      if (!product) {
+        return NextResponse.json(
+          { error: "Product not found" },
+          { status: 404 }
+        );
+      }
 
       const storeId = product.storeId;
+
       if (!ordersByStore.has(storeId)) {
         ordersByStore.set(storeId, []);
       }
-      ordersByStore.get(storeId).push({ ...item, price: product.price });
+
+      ordersByStore
+        .get(storeId)
+        .push({ ...item, price: product.price });
     }
 
-    const hasPlusPlan = has({ plan: "plus" });
+    let orderIds = [];
+    let fullAmount = 0;
     let isShippingFeeAdded = false;
 
-    // 5. Transaction to ensure data integrity
-    const result = await prisma.$transaction(async (tx) => {
-      const createdOrders = [];
+    // Create orders
+    for (const [storeId, sellerItems] of ordersByStore.entries()) {
+      let total = sellerItems.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+      );
 
-      for (const [storeId, sellerItems] of ordersByStore.entries()) {
-        let currentOrderTotal = sellerItems.reduce(
-          (acc, item) => acc + item.price * item.quantity,
-          0
-        );
-
-        if (coupon) {
-          currentOrderTotal -= (currentOrderTotal * coupon.discount) / 100;
-        }
-
-        if (!hasPlusPlan && !isShippingFeeAdded) {
-          currentOrderTotal += 5;
-          isShippingFeeAdded = true;
-        }
-
-        const newOrder = await tx.order.create({
-          data: {
-            userId,
-            storeId,
-            addressId,
-            total: parseFloat(currentOrderTotal.toFixed(2)),
-            paymentMethod,
-            // FIX: Use 'paymentMethod' variable, not 'PaymentMethod' enum
-            isPaid: false, // Stripe ke liye webhook handle karega baad mein
-            orderItems: {
-              create: sellerItems.map((item) => ({
-                productId: item.id,
-                quantity: item.quantity,
-                price: item.price,
-              })),
-            },
-          },
-        });
-        createdOrders.push(newOrder);
+      // Apply coupon
+      if (couponCode && coupon) {
+        total -= (total * coupon.discount) / 100;
       }
 
-      // 6. Clear Cart inside transaction
-      await tx.user.update({
-        where: { id: userId },
-        data: { cart: [] },
+      // Shipping fee
+      if (!hasPlusPlan && !isShippingFeeAdded) {
+        total += 5;
+        isShippingFeeAdded = true;
+      }
+
+      total = parseFloat(total.toFixed(2));
+
+      fullAmount += total;
+
+      const order = await prisma.order.create({
+        data: {
+          userId,
+          storeId,
+          addressId,
+          total,
+          paymentMethod: payMethod,
+          isCouponUsed: !!coupon,
+
+          coupon: coupon
+            ? {
+                code: coupon.code,
+                discount: coupon.discount,
+              }
+            : {},
+
+          orderItems: {
+            create: sellerItems.map((item) => ({
+              productId: item.id,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          },
+        },
       });
 
-      return createdOrders;
+      orderIds.push(order.id);
+    }
+
+    // Clear cart
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        cart: {},
+      },
     });
 
-    return NextResponse.json({ 
-      message: "Orders Placed Successfully", 
-      orders: result 
+    return NextResponse.json({
+      message: "Orders placed successfully",
+      orderIds,
+      fullAmount,
     });
-
   } catch (error) {
-    console.error("Order Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        error: error.message || "Something went wrong",
+      },
+      { status: 500 }
+    );
   }
 }
 
+// GET Orders
 export async function GET(request) {
   try {
     const { userId } = getAuth(request);
-    if (!userId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const orders = await prisma.order.findMany({
       where: {
         userId,
         OR: [
-          { paymentMethod: "COD" },
-          { AND: [{ paymentMethod: "STRIPE" }, { isPaid: true }] },
+          {
+            paymentMethod: PaymentMethod.COD,
+          },
+          {
+            AND: [
+              {
+                paymentMethod: PaymentMethod.STRIPE,
+              },
+              {
+                isPaid: true,
+              },
+            ],
+          },
         ],
       },
+
       include: {
-        orderItems: { include: { product: true } },
+        orderItems: {
+          include: {
+            product: true,
+          },
+        },
         address: true,
       },
-      orderBy: { createdAt: "desc" },
+
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return NextResponse.json({ orders });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error(error);
+
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
   }
 }
