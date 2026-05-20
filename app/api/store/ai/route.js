@@ -79,7 +79,7 @@
 
 
 
-import authSeller from "@/middlewares/authSeller";
+import authSeller from "@/middelwares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { openai } from "@/configs/openai";
