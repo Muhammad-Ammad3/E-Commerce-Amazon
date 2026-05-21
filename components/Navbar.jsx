@@ -161,12 +161,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 
-import {
-  useUser,
-  useClerk,
-  UserButton,
-  Show,
-} from "@clerk/nextjs";
+import { useUser, useClerk, UserButton, Show } from "@clerk/nextjs";
 
 const Navbar = () => {
   const { user } = useUser();
@@ -177,49 +172,51 @@ const Navbar = () => {
   const [search, setSearch] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
 
-  // ✅ Store States
+  // Store States
   const [hasStore, setHasStore] = useState(false);
   const [loadingStore, setLoadingStore] = useState(true);
 
   const cartCount = useSelector((state) => state.cart.total);
 
-  // ✅ Check Store Status
-  useEffect(() => {
-    const checkStoreStatus = async () => {
-      if (!user) {
-        setHasStore(false);
-        setLoadingStore(false);
-        return;
-      }
+// ✅ Replace ONLY this useEffect
 
-      try {
-        setLoadingStore(true);
+useEffect(() => {
+  const checkStoreStatus = async () => {
+    if (!user) {
+      setHasStore(false);
+      setLoadingStore(false);
+      return;
+    }
 
-        const res = await fetch("/api/store/is-seller");
+    try {
+      setLoadingStore(true);
 
-        const data = await res.json();
+      const res = await fetch("/api/store/is-seller");
 
-        // ✅ Backend se direct value
-        setHasStore(data.hasStore);
-      } catch (error) {
-        console.log("Store Error:", error);
-        setHasStore(false);
-      } finally {
-        setLoadingStore(false);
-      }
-    };
+      const data = await res.json();
 
-    checkStoreStatus();
-  }, [user]);
+      console.log("STORE DATA =>", data);
 
-  // ✅ Search Handler
+      // ✅ SIMPLE & CORRECT
+      setHasStore(!!data.hasStore);
+
+    } catch (error) {
+      console.error("Error fetching store status:", error);
+      setHasStore(false);
+    } finally {
+      setLoadingStore(false);
+    }
+  };
+
+  checkStoreStatus();
+}, [user]);
+
   const handleSearch = (e) => {
     e.preventDefault();
 
     if (!search.trim()) return;
 
     router.push(`/shop?search=${search}`);
-
     setMobileMenu(false);
   };
 
@@ -227,18 +224,13 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between py-4">
-
           {/* Logo */}
           <Link
             href="/"
             className="relative text-2xl sm:text-3xl lg:text-4xl font-semibold text-slate-700"
           >
             <span className="text-green-600">go</span>cart
-
-            <span className="text-green-600 text-3xl sm:text-5xl">
-              .
-            </span>
-
+            <span className="text-green-600 text-3xl sm:text-5xl">.</span>
             <Show when={{ plan: "plus" }}>
               <p className="absolute text-[10px] sm:text-xs font-semibold -top-2 -right-8 px-2 py-0.5 rounded-full flex items-center gap-2 text-white bg-green-500">
                 plus
@@ -248,7 +240,6 @@ const Navbar = () => {
 
           {/* Desktop Menu */}
           <div className="hidden lg:flex items-center gap-6 text-slate-600">
-
             <Link href="/" className="hover:text-black transition">
               Home
             </Link>
@@ -273,9 +264,9 @@ const Navbar = () => {
               <Search size={18} className="text-slate-600" />
 
               <input
+                className="w-full bg-transparent outline-none placeholder-slate-600"
                 type="text"
                 placeholder="Search products"
-                className="w-full bg-transparent outline-none placeholder-slate-600"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -287,9 +278,7 @@ const Navbar = () => {
               className="relative flex items-center gap-2 hover:text-black transition"
             >
               <ShoppingCart size={20} />
-
               Cart
-
               <span className="absolute -top-2 left-4 text-[10px] text-white bg-slate-700 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full">
                 {cartCount}
               </span>
@@ -305,9 +294,7 @@ const Navbar = () => {
               </button>
             ) : (
               <UserButton afterSignOutUrl="/">
-
                 <UserButton.MenuItems>
-
                   {/* Orders */}
                   <UserButton.Action
                     labelIcon={<PackageIcon size={16} />}
@@ -315,7 +302,7 @@ const Navbar = () => {
                     onClick={() => router.push("/orders")}
                   />
 
-                  {/* ✅ Store Logic */}
+                  {/* Store Logic */}
                   {!loadingStore &&
                     (hasStore ? (
                       <UserButton.Action
@@ -337,33 +324,26 @@ const Navbar = () => {
                     label="Admin"
                     onClick={() => router.push("/admin")}
                   />
-
                 </UserButton.MenuItems>
-
               </UserButton>
             )}
           </div>
 
           {/* Mobile Right Side */}
           <div className="flex lg:hidden items-center gap-4">
-
             {/* Cart */}
             <Link href="/cart" className="relative">
-
               <ShoppingCart size={24} />
 
               <span className="absolute -top-2 -right-2 text-[10px] text-white bg-slate-700 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full">
                 {cartCount}
               </span>
-
             </Link>
 
             {/* Mobile User */}
             {user && (
               <UserButton afterSignOutUrl="/">
-
                 <UserButton.MenuItems>
-
                   <UserButton.Action
                     labelIcon={<PackageIcon size={16} />}
                     label="My Orders"
@@ -376,7 +356,7 @@ const Navbar = () => {
                     onClick={() => router.push("/cart")}
                   />
 
-                  {/* ✅ Mobile Store Logic */}
+                  {/* Mobile Store Logic */}
                   {!loadingStore &&
                     (hasStore ? (
                       <UserButton.Action
@@ -398,9 +378,7 @@ const Navbar = () => {
                     label="Admin"
                     onClick={() => router.push("/admin")}
                   />
-
                 </UserButton.MenuItems>
-
               </UserButton>
             )}
 
@@ -408,7 +386,6 @@ const Navbar = () => {
             <button onClick={() => setMobileMenu(!mobileMenu)}>
               {mobileMenu ? <X size={28} /> : <Menu size={28} />}
             </button>
-
           </div>
         </div>
 
@@ -419,7 +396,6 @@ const Navbar = () => {
           }`}
         >
           <div className="flex flex-col gap-5 pt-4 text-slate-700">
-
             <Link
               href="/"
               onClick={() => setMobileMenu(false)}
@@ -460,9 +436,9 @@ const Navbar = () => {
               <Search size={18} className="text-slate-600" />
 
               <input
+                className="w-full bg-transparent outline-none placeholder-slate-600"
                 type="text"
                 placeholder="Search products"
-                className="w-full bg-transparent outline-none placeholder-slate-600"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -477,7 +453,6 @@ const Navbar = () => {
                 Login
               </button>
             )}
-
           </div>
         </div>
       </div>

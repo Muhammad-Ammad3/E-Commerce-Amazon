@@ -35,7 +35,7 @@ export async function GET(req) {
   try {
     const { userId } = getAuth(req);
 
-    // User login nahi
+    // ❌ User not logged in
     if (!userId) {
       return NextResponse.json({
         success: false,
@@ -43,27 +43,29 @@ export async function GET(req) {
       });
     }
 
-    // Store check
+    // ✅ Find Store
     const store = await prisma.store.findFirst({
       where: {
-        userId: userId,
+        userId,
       },
     });
 
-    // Agar store mil gaya
+    // ✅ Store exists
     if (store) {
       return NextResponse.json({
         success: true,
         hasStore: true,
-        store,
+        storeInfo: store,
       });
     }
 
-    // Agar store nahi mila
+    // ❌ Store not exists
     return NextResponse.json({
       success: true,
       hasStore: false,
+      storeInfo: null,
     });
+
   } catch (error) {
     console.log(error);
 
@@ -71,6 +73,7 @@ export async function GET(req) {
       {
         success: false,
         hasStore: false,
+        error: error.message,
       },
       { status: 500 }
     );

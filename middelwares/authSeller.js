@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 
 
 // const authSeller = async (userId) => {
@@ -25,35 +24,30 @@ import { prisma } from "@/lib/prisma";
 
 
 // export default authSeller;
-
+import { prisma } from "@/lib/prisma";
 
 const authSeller = async (userId) => {
-    try {
-        if (!userId) return false;
+  try {
+    if (!userId) return null;
 
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            include: { store: true },
-        });
+    const store = await prisma.store.findFirst({
+      where: {
+        userId,
+      },
+    });
 
-        // Check if user exists and has a store
-        if (!user || !user.store) {
-            return false;
-        }
-
-        // Logic Check: Status check ko tabhi rakhein agar aapne approval system banaya hai
-        // Agar status "approved" nahi hai, toh ye false dega
-        if (user.store.status === "approved") {
-            return user.store.id;
-        }
-
-        // Agar store hai par approved nahi hai
-        return false;
-
-    } catch (error) {
-        console.error("AuthSeller Middleware Error:", error);
-        return false;
+    // ❌ No Store
+    if (!store) {
+      return null;
     }
-}
+
+    // ✅ Return Store ID
+    return store.id;
+
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};
 
 export default authSeller;
