@@ -152,11 +152,13 @@ import {
   ShoppingCartIcon,
   X,
   ShieldUser,
+  Store,
+  PlusCircle,
 } from "lucide-react";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { useUser, useClerk, UserButton, Show } from "@clerk/nextjs";
@@ -170,7 +172,45 @@ const Navbar = () => {
   const [search, setSearch] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
 
+  // Store States
+  const [hasStore, setHasStore] = useState(false);
+  const [loadingStore, setLoadingStore] = useState(true);
+
   const cartCount = useSelector((state) => state.cart.total);
+
+  // ✅ Check Store Status
+  useEffect(() => {
+    const checkStoreStatus = async () => {
+      if (!user) {
+        setHasStore(false);
+        setLoadingStore(false);
+        return;
+      }
+
+      try {
+        setLoadingStore(true);
+
+        const res = await fetch("/api/store/is-seller");
+
+        const data = await res.json();
+
+        // ✅ Store exists
+        if (res.ok && data.storeInfo) {
+          setHasStore(true);
+        } else {
+          // ❌ Store not exists
+          setHasStore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching store status:", error);
+        setHasStore(false);
+      } finally {
+        setLoadingStore(false);
+      }
+    };
+
+    checkStoreStatus();
+  }, [user]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -192,6 +232,7 @@ const Navbar = () => {
           >
             <span className="text-green-600">go</span>cart
             <span className="text-green-600 text-3xl sm:text-5xl">.</span>
+
             <Show when={{ plan: "plus" }}>
               <p className="absolute text-[10px] sm:text-xs font-semibold -top-2 -right-8 px-2 py-0.5 rounded-full flex items-center gap-2 text-white bg-green-500">
                 plus
@@ -240,6 +281,7 @@ const Navbar = () => {
             >
               <ShoppingCart size={20} />
               Cart
+
               <span className="absolute -top-2 left-4 text-[10px] text-white bg-slate-700 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full">
                 {cartCount}
               </span>
@@ -256,11 +298,30 @@ const Navbar = () => {
             ) : (
               <UserButton afterSignOutUrl="/">
                 <UserButton.MenuItems>
+                  {/* Orders */}
                   <UserButton.Action
                     labelIcon={<PackageIcon size={16} />}
                     label="My Orders"
                     onClick={() => router.push("/orders")}
                   />
+
+                  {/* Store Logic */}
+                  {!loadingStore &&
+                    (hasStore ? (
+                      <UserButton.Action
+                        labelIcon={<Store size={16} />}
+                        label="My Store"
+                        onClick={() => router.push("/store")}
+                      />
+                    ) : (
+                      <UserButton.Action
+                        labelIcon={<PlusCircle size={16} />}
+                        label="Create Store"
+                        onClick={() => router.push("/create-store")}
+                      />
+                    ))}
+
+                  {/* Admin */}
                   <UserButton.Action
                     labelIcon={<ShieldUser size={16} />}
                     label="Admin"
@@ -282,7 +343,7 @@ const Navbar = () => {
               </span>
             </Link>
 
-            {/* User */}
+            {/* Mobile User */}
             {user && (
               <UserButton afterSignOutUrl="/">
                 <UserButton.MenuItems>
@@ -296,6 +357,29 @@ const Navbar = () => {
                     labelIcon={<ShoppingCartIcon size={16} />}
                     label="Cart"
                     onClick={() => router.push("/cart")}
+                  />
+
+                  {/* Mobile Store Logic */}
+                  {!loadingStore &&
+                    (hasStore ? (
+                      <UserButton.Action
+                        labelIcon={<Store size={16} />}
+                        label="My Store"
+                        onClick={() => router.push("/store")}
+                      />
+                    ) : (
+                      <UserButton.Action
+                        labelIcon={<PlusCircle size={16} />}
+                        label="Create Store"
+                        onClick={() => router.push("/create-store")}
+                      />
+                    ))}
+
+                  {/* Admin */}
+                  <UserButton.Action
+                    labelIcon={<ShieldUser size={16} />}
+                    label="Admin"
+                    onClick={() => router.push("/admin")}
                   />
                 </UserButton.MenuItems>
               </UserButton>
@@ -315,7 +399,6 @@ const Navbar = () => {
           }`}
         >
           <div className="flex flex-col gap-5 pt-4 text-slate-700">
-            {/* Links */}
             <Link
               href="/"
               onClick={() => setMobileMenu(false)}
