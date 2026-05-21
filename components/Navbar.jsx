@@ -142,8 +142,6 @@
 
 // export default Navbar;
 
-
-
 "use client";
 
 import {
@@ -153,6 +151,7 @@ import {
   ShoppingCart,
   ShoppingCartIcon,
   X,
+  ShieldUser,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -160,12 +159,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSelector } from "react-redux";
 
-import {
-  useUser,
-  useClerk,
-  UserButton,
-  Show,
-} from "@clerk/nextjs";
+import { useUser, useClerk, UserButton, Show } from "@clerk/nextjs";
 
 const Navbar = () => {
   const { user } = useUser();
@@ -198,7 +192,6 @@ const Navbar = () => {
           >
             <span className="text-green-600">go</span>cart
             <span className="text-green-600 text-3xl sm:text-5xl">.</span>
-
             <Show when={{ plan: "plus" }}>
               <p className="absolute text-[10px] sm:text-xs font-semibold -top-2 -right-8 px-2 py-0.5 rounded-full flex items-center gap-2 text-white bg-green-500">
                 plus
@@ -246,9 +239,7 @@ const Navbar = () => {
               className="relative flex items-center gap-2 hover:text-black transition"
             >
               <ShoppingCart size={20} />
-
               Cart
-
               <span className="absolute -top-2 left-4 text-[10px] text-white bg-slate-700 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full">
                 {cartCount}
               </span>
@@ -269,6 +260,11 @@ const Navbar = () => {
                     labelIcon={<PackageIcon size={16} />}
                     label="My Orders"
                     onClick={() => router.push("/orders")}
+                  />
+                  <UserButton.Action
+                    labelIcon={<ShieldUser size={16} />}
+                    label="Admin"
+                    onClick={() => router.push("/admin")}
                   />
                 </UserButton.MenuItems>
               </UserButton>
