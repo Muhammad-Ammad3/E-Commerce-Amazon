@@ -43,13 +43,9 @@ export default function AdminCoupons() {
         expiresAt: new Date(newCoupon.expiresAt),
       };
 
-      const { data } = await axios.post(
-        "/api/admin/coupon",
-        payload, 
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const { data } = await axios.post("/api/admin/coupon", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       toast.success(data.message);
 
@@ -66,7 +62,7 @@ export default function AdminCoupons() {
       await fetchCoupons();
     } catch (error) {
       toast.error(error?.response?.data?.error || error.message);
-      throw error; 
+      throw error;
     }
   };
 

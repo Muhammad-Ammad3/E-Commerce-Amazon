@@ -4,7 +4,7 @@ import { inngest } from "./client";
 export const syncUserCreation = inngest.createFunction(
   {
     id: "sync-user-create",
-    triggers: [{ event: "clerk/user.created" }], // Array format is better
+    triggers: [{ event: "clerk/user.created" }], 
   },
   async ({ event }) => {
     const { data } = event;
@@ -50,17 +50,15 @@ export const syncUserDeletion = inngest.createFunction(
   }
 );
 
-// FIX: Yahan configuration aur triggers ko merge kar diya hai
 export const deleteCouponOnExpiry = inngest.createFunction(
   { 
     id: "delete-coupon-on-expiry",
-    triggers: [{ event: "app/coupon.expired" }] // Trigger ab pehle argument mein hai
+    triggers: [{ event: "app/coupon.expired" }] 
   },
   async ({ event, step }) => {
     const { data } = event;
     const expiryDate = new Date(data.expires_at);
 
-    // FIX: sleepUntil (single 'l')
     await step.sleepUntil("wait-for-expiry", expiryDate);
 
     await step.run("delete-coupon-from-database", async () => {

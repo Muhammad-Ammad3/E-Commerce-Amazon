@@ -248,6 +248,3 @@ const OrderSummary = ({ totalPrice, items }) => {
 };
 
 export default OrderSummary;
-
-
-

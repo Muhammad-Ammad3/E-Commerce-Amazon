@@ -19,7 +19,6 @@ export async function GET(request) {
       orderBy: { createdAt: "desc" },
     });
 
-    //remove products with isActive false
     products = products.filter((product) => product.store.isActive);
     return NextResponse.json({ products });
   } catch (error) {

@@ -1,11 +1,9 @@
-
-// toogle stock of a product
-
 import { prisma } from "@/lib/prisma";
 import authSeller from "@/middelwares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+// toogle stock of a product
 export async function POST(request) {
   try {
     const { userId } = getAuth(request);

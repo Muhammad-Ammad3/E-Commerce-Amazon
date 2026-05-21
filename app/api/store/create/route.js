@@ -94,27 +94,26 @@ export async function POST(request) {
 }
 
 export async function GET(request) {
-    try {
-        const {userId} = getAuth(request);
+  try {
+    const { userId } = getAuth(request);
 
-        const store = await prisma.store.findFirst({
-            where: { userId: userId },
-            select: {
-                status: true
-            }
-        });
-        if(store){
-            return NextResponse.json({status: store.status});
-        }
+    const store = await prisma.store.findFirst({
+      where: { userId: userId },
+      select: {
+        status: true,
+      },
+    });
+    if (store) {
+      return NextResponse.json({ status: store.status });
+    }
 
-        return NextResponse.json({status: "not registered"});
-
-    } catch (error) {
-        console.log(error);
+    return NextResponse.json({ status: "not registered" });
+  } catch (error) {
+    console.log(error);
 
     return NextResponse.json(
       { error: error.message || error.code },
       { status: 400 },
     );
-    }
+  }
 }

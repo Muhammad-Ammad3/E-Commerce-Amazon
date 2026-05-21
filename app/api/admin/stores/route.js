@@ -3,7 +3,6 @@ import authAdmin from "@/middelwares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-
 // get all approved stores
 export async function GET(request) {
   try {
@@ -14,13 +13,16 @@ export async function GET(request) {
     }
 
     const stores = await prisma.store.findMany({
-      where: { status: "approved"},
+      where: { status: "approved" },
       include: { user: true },
     });
 
     return NextResponse.json({ stores });
   } catch (error) {
-        console.error(error)
-        return NextResponse.json({error: error.code || error.message}, {status: 400})
-    }
+    console.error(error);
+    return NextResponse.json(
+      { error: error.code || error.message },
+      { status: 400 },
+    );
+  }
 }

@@ -12,12 +12,9 @@ export async function GET(request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    // get total orders
     const orders = await prisma.order.count();
-    // get total store on app
     const stores = await prisma.store.count();
 
-    // get all order includeonly createdAt and total & calculate total revenue
     const allOrders = await prisma.order.findMany({
       select: {
         createdAt: true,
@@ -31,7 +28,6 @@ export async function GET(request) {
 
     const revenue = totalRevenue.toFixed(2);
 
-    // total products on app
     const products = await prisma.product.count();
 
     const dashboardData = {

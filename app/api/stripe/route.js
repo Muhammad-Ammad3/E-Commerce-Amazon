@@ -1,82 +1,3 @@
-// import { prisma } from "@/lib/prisma";
-// import { log } from "next/dist/server/typescript/utils";
-// import { NextResponse } from "next/server";
-// import Stripe from "stripe";
-
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// export async function POST(request) {
-//     try {
-//         const body = await request.text();
-//         const sig = request.get("stripe-signature");
-
-//         const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-
-//         const handlePaymentIntent = async (paymentIntentId, isPaid) => {
-//             const session = await stripe.checkout.sessions.list({
-//                 payment_intent: paymentIntentId,
-//             })
-
-//             const {orderIds, userId, appId} = session.data[0].metadata;
-//             if(appId !== "gocart") {
-//                 return NextResponse.json({ received: true, message: "Invalid app ID" }, { status: 400 });
-//             }
-    
-//             const orderIdsArray = orderIds.split(",")
-            
-//             if(isPaid){
-//                 // mark orders as paid
-//                 await Promise.all(orderIdsArray.map(async (orderId) => {
-//                     await prisma.order.update({
-//                         where: { id: orderId },
-//                         data: { isPaid: true },
-//                     })
-//                 }))
-//                 // delete cart from user
-//                 await prisma.user.update({
-//                     where: { id: userId },
-//                     data: { cart: {} },
-//                 })
-//             }else{
-//                 // delete order from database
-//                 await Promise.all(orderIdsArray.map(async (orderId) => {
-//                     await prisma.order.delete({
-//                         where: { id: orderId },
-//                     })
-//                 }))
-//             }
-//         }
-
-//         switch (event.type) {
-//             case "payment_intent.succeeded": {
-//                 await handlePaymentIntent(event.data.object.id, true);
-//                 break;
-//             }
-//             case "payment_intent.canceled": {
-//                 await handlePaymentIntent(event.data.object.id, false);
-//                 break;
-//             }
-//             default:
-//                 console.log("Unhandled event type:", event.type);
-                
-//                 break;
-//         }
-
-//         return NextResponse.json({ received: true });
-
-//     } catch (error) {
-//         console.error(error);
-//         return NextResponse.json({ error: error.message}, { status: 400 });
-//     }
-// }
-
-
-// export const config = {
-//     api: {bodyparser: false},
-// }
-
-
-
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -87,38 +8,29 @@ export async function POST(request) {
   try {
     const body = await request.text();
 
-    const sig =
-      request.headers.get("stripe-signature");
+    const sig = request.headers.get("stripe-signature");
 
     if (!sig) {
       return NextResponse.json(
         {
           error: "Missing stripe signature",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const event =
-      stripe.webhooks.constructEvent(
-        body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
+    const event = stripe.webhooks.constructEvent(
+      body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET,
+    );
 
-    const handlePaymentIntent = async (
-      paymentIntentId,
-      isPaid
-    ) => {
-      const sessions =
-        await stripe.checkout.sessions.list({
-          payment_intent: paymentIntentId,
-        });
+    const handlePaymentIntent = async (paymentIntentId, isPaid) => {
+      const sessions = await stripe.checkout.sessions.list({
+        payment_intent: paymentIntentId,
+      });
 
-      if (
-        !sessions.data ||
-        sessions.data.length === 0
-      ) {
+      if (!sessions.data || sessions.data.length === 0) {
         console.log("No session found");
         return;
       }
@@ -130,8 +42,7 @@ export async function POST(request) {
         return;
       }
 
-      const { orderIds, userId, appId } =
-        session.metadata;
+      const { orderIds, userId, appId } = session.metadata;
 
       if (appId !== "gocart") {
         console.log("Invalid app ID");
@@ -141,7 +52,6 @@ export async function POST(request) {
       const orderIdsArray = orderIds.split(",");
 
       if (isPaid) {
-        // Mark orders as paid
         await Promise.all(
           orderIdsArray.map(async (orderId) => {
             await prisma.order.update({
@@ -151,7 +61,7 @@ export async function POST(request) {
                 isPaid: true,
               },
             });
-          })
+          }),
         );
 
         // Clear cart
@@ -169,31 +79,22 @@ export async function POST(request) {
             await prisma.order.delete({
               where: { id: orderId },
             });
-          })
+          }),
         );
       }
     };
 
     switch (event.type) {
       case "payment_intent.succeeded":
-        await handlePaymentIntent(
-          event.data.object.id,
-          true
-        );
+        await handlePaymentIntent(event.data.object.id, true);
         break;
 
       case "payment_intent.canceled":
-        await handlePaymentIntent(
-          event.data.object.id,
-          false
-        );
+        await handlePaymentIntent(event.data.object.id, false);
         break;
 
       default:
-        console.log(
-          "Unhandled event type:",
-          event.type
-        );
+        console.log("Unhandled event type:", event.type);
     }
 
     return NextResponse.json({
@@ -204,11 +105,9 @@ export async function POST(request) {
 
     return NextResponse.json(
       {
-        error:
-          error.message ||
-          "Webhook Error",
+        error: error.message || "Webhook Error",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

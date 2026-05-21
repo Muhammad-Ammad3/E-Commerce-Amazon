@@ -1,7 +1,12 @@
 "use client";
-import {useAuth} from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
-import { CircleDollarSignIcon, ShoppingBasketIcon, StarIcon, TagsIcon } from "lucide-react";
+import {
+  CircleDollarSignIcon,
+  ShoppingBasketIcon,
+  StarIcon,
+  TagsIcon,
+} from "lucide-react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import Loading from "@/components/Loading";
@@ -41,31 +46,25 @@ export default function Dashboard() {
     },
   ];
 
- const fetchDashboardData = async () => {
-  try {
-    const token = await getToken();
+  const fetchDashboardData = async () => {
+    try {
+      const token = await getToken();
 
-    const { data } = await axios.get("/api/store/dashboard", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+      const { data } = await axios.get("/api/store/dashboard", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    console.log(data);
+      setDashboardData(data.dashBoardData);
+    } catch (error) {
+      console.log(error);
 
-    // ✅ Correct Key
-    setDashboardData(data.dashBoardData);
-
-  } catch (error) {
-    console.log(error);
-
-    toast.error(
-      error?.response?.data?.error || error.message
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+      toast.error(error?.response?.data?.error || error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchDashboardData();
