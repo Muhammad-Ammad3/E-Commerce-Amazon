@@ -28,69 +28,49 @@
 // }
 
 import { prisma } from "@/lib/prisma";
-import authSeller from "@/middelwares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-export async function GET(request) {
+export async function GET(req) {
   try {
-    // ✅ Clerk User
-    const { userId } = getAuth(request);
+    const { userId } = getAuth(req);
 
-    // ❌ User not logged in
+    // User login nahi
     if (!userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          hasStore: false,
-          message: "Unauthorized",
-        },
-        { status: 401 }
-      );
-    }
-
-    // ✅ Check seller
-    const isSeller = await authSeller(userId);
-
-    // ❌ User is not seller
-    if (!isSeller) {
       return NextResponse.json({
-        success: true,
+        success: false,
         hasStore: false,
-        storeInfo: null,
       });
     }
 
-    // ✅ Find Store
-    const storeInfo = await prisma.store.findUnique({
+    // Store check
+    const store = await prisma.store.findFirst({
       where: {
         userId: userId,
       },
     });
 
-    // ❌ Store not found
-    if (!storeInfo) {
+    // Agar store mil gaya
+    if (store) {
       return NextResponse.json({
         success: true,
-        hasStore: false,
-        storeInfo: null,
+        hasStore: true,
+        store,
       });
     }
 
-    // ✅ Store exists
+    // Agar store nahi mila
     return NextResponse.json({
       success: true,
-      hasStore: true,
-      storeInfo,
+      hasStore: false,
     });
   } catch (error) {
-    console.error("Store API Error:", error);
+    console.log(error);
 
     return NextResponse.json(
       {
         success: false,
         hasStore: false,
-        message: "Internal Server Error",
       },
       { status: 500 }
     );
