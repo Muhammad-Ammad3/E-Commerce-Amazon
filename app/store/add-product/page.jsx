@@ -73,8 +73,10 @@ export default function StoreAddProduct() {
       return toast.error("Only image files are allowed");
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return toast.error("Image size should be less than 5MB");
+    if (file.size > 1.5 * 1024 * 1024) {
+      return toast.error(
+        "Image size should be less than 1.5MB for AI analysis",
+      );
     }
 
     if (previews[key]) {
@@ -133,16 +135,28 @@ export default function StoreAddProduct() {
                 success: (res) => {
                   const data = res.data;
 
-                  if (data?.name || data?.description) {
+                  if (
+                    data?.name ||
+                    data?.description ||
+                    data?.mrp ||
+                    data?.price
+                  ) {
                     setProductInfo((prev) => ({
                       ...prev,
                       name: data?.name || prev.name,
                       description: data?.description || prev.description,
+                      // Backend se aayi hui original (mrp) aur offer price dono bind ho rahi hain
+                      mrp:
+                        data?.mrp !== undefined ? String(data.mrp) : prev.mrp,
+                      price:
+                        data?.price !== undefined
+                          ? String(data.price)
+                          : prev.price,
                     }));
 
                     setAiUsed(true);
 
-                    return "AI filled product info";
+                    return "AI filled product info, MRP & Offer Price!";
                   }
 
                   return "AI could not analyze the image";
@@ -316,9 +330,10 @@ export default function StoreAddProduct() {
             type="number"
             name="mrp"
             min="0"
+            step="0.01"
             value={productInfo.mrp}
             onChange={onChangeHandler}
-            placeholder="0"
+            placeholder="0.00"
             className="w-full max-w-45 p-2 px-4 outline-none border border-slate-200 rounded"
             required
           />
@@ -331,9 +346,10 @@ export default function StoreAddProduct() {
             type="number"
             name="price"
             min="0"
+            step="0.01"
             value={productInfo.price}
             onChange={onChangeHandler}
-            placeholder="0"
+            placeholder="0.00"
             className="w-full max-w-45 p-2 px-4 outline-none border border-slate-200 rounded"
             required
           />
