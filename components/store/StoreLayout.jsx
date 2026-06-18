@@ -25,7 +25,7 @@ const StoreLayout = ({ children }) => {
         },
       });
 
-      console.log(data);
+ 
 
       setIsSeller(data.hasStore);
 

@@ -48,7 +48,6 @@ const Navbar = () => {
 
         const data = await res.json();
 
-        console.log("STORE DATA =>", data);
 
         setHasStore(!!data.hasStore);
       } catch (error) {

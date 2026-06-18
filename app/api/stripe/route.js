@@ -31,21 +31,20 @@ export async function POST(request) {
       });
 
       if (!sessions.data || sessions.data.length === 0) {
-        console.log("No session found");
+
         return;
       }
 
       const session = sessions.data[0];
 
       if (!session.metadata) {
-        console.log("No metadata found");
         return;
       }
 
       const { orderIds, userId, appId } = session.metadata;
 
       if (appId !== "gocart") {
-        console.log("Invalid app ID");
+ 
         return;
       }
 
